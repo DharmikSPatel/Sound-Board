@@ -21,6 +21,7 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -31,25 +32,26 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-
 public class SoundBoard extends JFrame implements Runnable, ActionListener, AdjustmentListener {
 
-	Color normalColor = new Color(238, 238, 238);
-	Color selectedColor = new Color(255, 0, 64);
-	Color colColor = new Color(171, 155, 142);
+	Color normalColor1 = Color.WHITE;
+	Color normalColor2 = Color.decode("#e0f7fa");
+	Color selectedColor = Color.decode("#e06666");
+	Color columnsColor = Color.decode("#4dd0e1");
 
-	final File notesDir = new File("MusicBox Notes");
+	final File notesDir = new File("Piano Notes");
 	int ROWS = notesDir.list().length;
 	int COLS = 100;
 	int TEMPO = 200;
 
-	JScrollPane srcollPane;
-	JPanel buttonPanel, topPanel, bottomPanel, topButtonPanel;
-	JToggleButton button[][];
+	JScrollPane scrollPane;
+	JPanel buttonPanel, topPanel, bottomPanel, topButtonPanel, columnsInputPanel;
+	JToggleButton buttons[][];
 	boolean notStopped = true;
 	String[] clipNames = new String[ROWS];
 	Clip[][] clip;
@@ -68,21 +70,31 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 	JMenuItem[] fileMenuItems;
 	String[] fileMenuItemNames;
 
+	JLabel columnsInputLabel;
+	JTextField columnsInput;
+	JButton columnsInpuButton;
 	public SoundBoard() {
-		UIManager.put("ToggleButton.background", normalColor);
 		UIManager.put("ToggleButton.select", selectedColor);
+
 		setUpAudioFiles();
 
 		buttonPanel = new JPanel();
-		setUpButtonPanel();
-		srcollPane = new JScrollPane(buttonPanel, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+		setUpButtonPanel("init");
+		scrollPane = new JScrollPane(buttonPanel, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
 
 		topPanel = new JPanel(new BorderLayout());
-
+		columnsInputPanel = new JPanel();
+		columnsInputLabel = new JLabel("Columns: ");
+		columnsInput = new JTextField(""+COLS);
+		columnsInpuButton = new JButton("ENTER");
+		columnsInpuButton.addActionListener(this);
+		columnsInputPanel.add(columnsInputLabel);
+		columnsInputPanel.add(columnsInput);
+		columnsInputPanel.add(columnsInpuButton);
 		menuBar = new JMenuBar();
 		loadSongsMenu = new JMenu("Pre-Loaded Songs");
-		menuItemsSongs = new JMenuItem[3];
-		preLoadedSongs = new String[] { "Harry Potter.txt", "Imperial March.txt", "s.txt" };
+		preLoadedSongs = new String[] { "Let It Go.txt", "Harry Potter.txt", "Imperial March.txt", "Game Of Thrones.txt", "Pirates Of The Caribbean.txt", "Senorita.txt", "Havana.txt"};
+		menuItemsSongs = new JMenuItem[preLoadedSongs.length];
 		for (int i = 0; i < menuItemsSongs.length; i++) {
 			menuItemsSongs[i] = new JMenuItem(preLoadedSongs[i].substring(0, preLoadedSongs[i].length() - 4));
 			menuItemsSongs[i].addActionListener(this);
@@ -98,38 +110,41 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 		}
 		menuBar.add(fileMenu);
 		menuBar.add(loadSongsMenu);
-		
 		topButtonPanel = new JPanel();
 		randomButton = new JButton("Random");
 		randomButton.addActionListener(this);
+		randomButton.setFocusPainted(false);
 		topButtonPanel.add(randomButton);
-
 		clearButton = new JButton("Clear");
 		clearButton.addActionListener(this);
+		clearButton.setFocusPainted(false);
 		topButtonPanel.add(clearButton);
-
-		playPauseButton = new JButton("Stop");
+		playPauseButton = new JButton(new ImageIcon("stop.png"));
+		playPauseButton.setPreferredSize(new Dimension(26, 26));
+		playPauseButton.setMargin(new Insets(0, 0, 0, 0));
 		playPauseButton.addActionListener(this);
+		//playPauseButton.setFocusPainted(false);
 		topButtonPanel.add(playPauseButton);
-
 		topPanel.add(menuBar, BorderLayout.WEST);
 		topPanel.add(topButtonPanel, BorderLayout.EAST);
+		topPanel.add(columnsInputPanel, BorderLayout.CENTER);
 
 		bottomPanel = new JPanel(new BorderLayout());
 		tempoBar = new JScrollBar(JScrollBar.HORIZONTAL, TEMPO, 0, 0, 2000);
 		tempoBar.addAdjustmentListener(this);
-		tempoLabel = new JLabel(String.format("Tempo: %-6d", TEMPO));
+		tempoLabel = new JLabel(String.format("%s%-6d","Tempo: ", TEMPO));
 		tempoLabel.setFont(new Font("Consolas", Font.BOLD, 13));
 		bottomPanel.add(tempoLabel, BorderLayout.WEST);
 		bottomPanel.add(tempoBar, BorderLayout.CENTER);
 
 		setLayout(new BorderLayout());
-		add(srcollPane, BorderLayout.CENTER);
+		add(scrollPane, BorderLayout.CENTER);
 		add(topPanel, BorderLayout.NORTH);
 		add(bottomPanel, BorderLayout.SOUTH);
 
+
 		setTitle("Sound Board");
-		setSize(1000, 1000);
+		setSize(1000, 600);
 		setVisible(true);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -142,10 +157,10 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 		do {
 			for (int x = 0; x < COLS && notStopped; x++) {
 				for (int y = 0; y < ROWS && notStopped; y++) {
-					if (button[y][x] != null && button[y][x].isSelected()) {
-						clip[y][x % 5].start();
-					} else if (button[y][x] != null) {
-						button[y][x].setBackground(colColor);
+					if (buttons[y][x] != null && buttons[y][x].isSelected()) {
+						clip[y][x % clip[y].length].start();
+					} else if (buttons[y][x] != null) {
+						buttons[y][x].setBackground(columnsColor);
 					}
 				}
 				try {
@@ -154,8 +169,8 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 					e.printStackTrace();
 				}
 				for (int y = 0; y < ROWS; y++) {
-					if(button[y][x] != null)
-						button[y][x].setBackground(normalColor);
+					if(buttons[y][x] != null)
+						buttons[y][x].setBackground(y % 2==0 ? normalColor1 : normalColor2);
 				}
 				for (int r = 0; r < ROWS; r++) {
 					for (int c = 0; c < clip[r].length; c++) {
@@ -178,7 +193,7 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 			if (notStopped) {
 				stopPlaying();
 			} else {
-				playPauseButton.setText("Stop");
+				playPauseButton.setIcon(new ImageIcon("stop.png"));;
 				notStopped = true;
 				Thread timing = new Thread(this);
 				timing.start();
@@ -187,14 +202,14 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 			stopPlaying();
 			for (int y = 0; y < ROWS; y++) {
 				for (int x = 0; x < COLS; x++) {
-					button[y][x].setSelected(((int)(Math.random()*30)) == 0 ? true : false);
+					buttons[y][x].setSelected(((int)(Math.random()*30)) == 0 ? true : false);
 				}
 			}
 		} else if (e.getSource() == clearButton) {
 			stopPlaying();
 			for (int y = 0; y < ROWS; y++) {
 				for (int x = 0; x < COLS; x++) {
-					button[y][x].setSelected(false);
+					buttons[y][x].setSelected(false);
 				}
 			}
 		} else if (e.getSource() == fileMenuItems[1]) {
@@ -202,12 +217,18 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 			saveFile();
 		} else if (e.getSource() == fileMenuItems[0]) {
 			stopPlaying();
-			readFile(openFile());
+			File file = openFile();
+			if(file != null)
+				readFile(file);
+		} else if (e.getSource() == columnsInpuButton) {
+			stopPlaying();
+			COLS = Integer.parseInt(columnsInput.getText());
+			setUpButtonPanel("chaning cols");
 		} else {
 			for (int i = 0; i < menuItemsSongs.length; i++) {
 				if (e.getSource() == menuItemsSongs[i]) {
 					stopPlaying();
-					readFile(new File(preLoadedSongs[i]));
+					readFile(new File("Pre Loaded Songs\\"+preLoadedSongs[i]));
 				}
 			}
 		}
@@ -216,7 +237,7 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 	public void adjustmentValueChanged(AdjustmentEvent e) {
 		if (e.getSource() == tempoBar) {
 			TEMPO = tempoBar.getValue();
-			tempoLabel.setText(String.format("Tempo: %-6d", TEMPO));
+			tempoLabel.setText(String.format("%s%-6d","Tempo: ", TEMPO));
 		}
 	}
 	private void saveFile() {
@@ -233,7 +254,7 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 				String output = "COLS: "+COLS+" TEMPO: "+TEMPO+"\n";
 				for(int y = 0; y < ROWS; y++){
 					for(int x = 0; x < COLS; x++){
-						if(button[y][x].isSelected())
+						if(buttons[y][x].isSelected())
 							output += "x";
 						else
 							output += "-";
@@ -261,7 +282,7 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 		}
 	}
 	private void stopPlaying() {
-		playPauseButton.setText("Play");
+		playPauseButton.setIcon(new ImageIcon("play.jpg"));
 		notStopped = false;
 	}
 
@@ -271,50 +292,57 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 			BufferedReader br = new BufferedReader(new FileReader(file));
 			String[] firstLineParts = br.readLine().split(" ");
 			COLS = Integer.parseInt(firstLineParts[1]);
+			columnsInput.setText(""+COLS);
 			TEMPO = Integer.parseInt(firstLineParts[3]);
 			tempoBar.setValue(TEMPO);
 
-			setUpButtonPanel();
+			setUpButtonPanel("reading file");
 
 			String line = "";
 			int i = 0;
 			while ((line = br.readLine()) != null) {
-				System.out.println(line);
 				sheet[i] = line;
 				i++;
 			}
 			br.close();
 		} catch (Exception e) {
-			System.out.println("FILE ERROR " + e);
+			System.out.println("====================");
+			e.printStackTrace();
 		}
 
 		for (int y = 0; y < ROWS; y++) {
 			for (int x = 0; x < COLS; x++) {
 				if ((sheet[y].charAt(x) + "").equals("x"))
-					button[y][x].setSelected(true);
+					buttons[y][x].setSelected(true);
 				else
-					button[y][x].setSelected(false);
+					buttons[y][x].setSelected(false);
 			}
 		}
-
-		revalidate();
-		repaint();
 	}
 
-	public void setUpButtonPanel() {
+	public void setUpButtonPanel(String doing) {
 		buttonPanel.removeAll();
 		buttonPanel.setLayout(new GridLayout(ROWS, COLS, 2, 2));
-		button = new JToggleButton[ROWS][COLS];
+		if(buttons == null)
+			buttons = new JToggleButton[ROWS][COLS];
+		JToggleButton[][] temp = new JToggleButton[ROWS][COLS];
 		for (int y = 0; y < ROWS; y++) {
 			for (int x = 0; x < COLS; x++) {
-				button[y][x] = new JToggleButton();
-				button[y][x].setPreferredSize(new Dimension(30, 30));
-				button[y][x].setFont(new Font("Arial", Font.BOLD, 10));
-				button[y][x].setMargin(new Insets(0, 0, 0, 0));
-				button[y][x].setText(clipNames[y].toUpperCase());
-				buttonPanel.add(button[y][x]);
+				temp[y][x] = new JToggleButton();
+				temp[y][x].setPreferredSize(new Dimension(20, 20));
+				temp[y][x].setFont(new Font("Arial", Font.BOLD, 7));
+				temp[y][x].setMargin(new Insets(0, 0, 0, 0));
+				temp[y][x].setText(clipNames[y].toUpperCase());
+				temp[y][x].setFocusPainted(false);
+				temp[y][x].setBackground(y % 2==0 ? normalColor1 : normalColor2);
+				if(!(doing.contains("read") || doing.contains("init")) && y < buttons.length && x < buttons[y].length && buttons[y][x] != null && buttons[y][x].isSelected())
+					temp[y][x].setSelected(true);
+				buttonPanel.add(temp[y][x]);
 			}
 		}
+		buttons = temp;
+		revalidate();
+		repaint();
 	}
 
 	public void setUpAudioFiles() {
@@ -325,7 +353,7 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 		try {
 			for (int y = 0; y < ROWS; y++) {
 				for (int x = 0; x < clip[y].length; x++) {
-					URL url = this.getClass().getClassLoader().getResource("MusicBox Notes\\" + clipNames[y] + ".wav");
+					URL url = this.getClass().getClassLoader().getResource("Piano Notes\\" + clipNames[y] + ".wav");
 					AudioInputStream audioIn = AudioSystem.getAudioInputStream(url);
 					clip[y][x] = AudioSystem.getClip();
 					clip[y][x].open(audioIn);
