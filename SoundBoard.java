@@ -93,7 +93,7 @@ public class SoundBoard extends JFrame implements Runnable, ActionListener, Adju
 		columnsInputPanel.add(columnsInpuButton);
 		menuBar = new JMenuBar();
 		loadSongsMenu = new JMenu("Pre-Loaded Songs");
-		preLoadedSongs = new String[] { "Let It Go.txt", "Harry Potter.txt", "Imperial March.txt", "Game Of Thrones.txt", "Pirates Of The Caribbean.txt", "Senorita.txt", "Havana.txt"};
+		preLoadedSongs = new String[] { "Let It Go.txt", "Harry Potter.txt", "Imperial March.txt", "Game Of Thrones.txt", "Pirates Of The Caribbean.txt", "Senorita.txt", "Havana.txt", "Memories.txt", "Mission Impossible.txt", "Animals.txt", "Shape Of You.txt", "Cantina Band.txt"};
 		menuItemsSongs = new JMenuItem[preLoadedSongs.length];
 		for (int i = 0; i < menuItemsSongs.length; i++) {
 			menuItemsSongs[i] = new JMenuItem(preLoadedSongs[i].substring(0, preLoadedSongs[i].length() - 4));
